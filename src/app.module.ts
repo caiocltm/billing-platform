@@ -1,10 +1,12 @@
-import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
-import { AppService } from './app.service';
+import { Module } from '@nestjs/common';
+import { BillingService } from './billing/billing.service';
+import { ConfigModule } from '@nestjs/config';
+import { validate } from './lib/config/env-variables.config';
 
 @Module({
-  imports: [],
+  imports: [ConfigModule.forRoot({ validate })],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [BillingService],
 })
 export class AppModule {}
