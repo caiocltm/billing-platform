@@ -26,9 +26,14 @@
       </div>
     </form>
 
-    {{#if message}}
-      <p>{{message}}</p>
+    {{#if result}}
+      <div class='result-message'>
+        <p>{{result}}</p>
+        <p>Filename: {{fileName}}</p>
+        <p>File size: {{fileSize}}</p>
+        <p>File type: {{fileType}}</p>
+        <p>CSV lines processed: {{linesProcessed}}</p>
+      </div>
     {{/if}}
   </body>
-
 </html>

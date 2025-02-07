@@ -4,6 +4,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ConsoleLogger } from '@nestjs/common';
 import { join } from 'node:path';
 import { AppModule } from './app.module';
+import { HttpExceptionFilter } from './lib/exception-filter/http-exception.filter';
 
 function setupStaticPages(app: NestExpressApplication): void {
   app.useStaticAssets(join(__dirname, '..', 'public'));
@@ -26,6 +27,10 @@ function setupSwagger(appName: string, app: NestExpressApplication): void {
   SwaggerModule.setup('api/docs', app, documentFactory);
 }
 
+function setupFilter(app: NestExpressApplication): void {
+  app.useGlobalFilters(new HttpExceptionFilter());
+}
+
 async function bootstrap(): Promise<void> {
   const appName = process.env.APP_NAME as string;
 
@@ -37,6 +42,7 @@ async function bootstrap(): Promise<void> {
 
   setupSwagger(appName, app);
   setupStaticPages(app);
+  setupFilter(app);
 
   await app.listen(process.env.PORT as string);
 }

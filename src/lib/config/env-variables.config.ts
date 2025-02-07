@@ -33,19 +33,9 @@ class EnvironmentVariables {
 
   @IsString()
   DATABASE_NAME: string;
-
-  @IsNumber()
-  @Min(1)
-  @Max(110000000)
-  MAX_FILE_SIZE: number;
-
-  @IsString()
-  ALLOWED_FILE_TYPE: string;
 }
 
-export function validate(
-  config: Record<string, unknown>,
-): EnvironmentVariables {
+function validate(config: Record<string, unknown>): EnvironmentVariables {
   const validatedConfig = plainToInstance(EnvironmentVariables, config, {
     enableImplicitConversion: true,
   });
@@ -58,3 +48,7 @@ export function validate(
 
   return validatedConfig;
 }
+
+export default {
+  validate,
+};

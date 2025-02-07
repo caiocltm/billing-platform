@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
 import {
   ConsoleLogger,
   Controller,
@@ -8,50 +6,39 @@ import {
   Render,
   UploadedFile,
   UseInterceptors,
-  ParseFilePipeBuilder,
-  HttpStatus,
   Res,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { StreamStorageEngine } from './lib/multer/stream-storage.engine';
+import { Response } from 'express';
+import ParseFile from './lib/pipe/parse-file.pipe';
+import FileInterceptor from './lib/interceptor/file.interceptor';
+import { CustomFile } from './lib/multer/stream-storage.engine';
 
 @Controller()
 export class AppController {
+  public static VIEW_TEMPLATE_NAME = 'index';
+
   constructor() {}
 
   @Get()
-  @Render('index')
+  @Render(AppController.VIEW_TEMPLATE_NAME)
   renderIndexPage(): void {
     new ConsoleLogger({ context: 'Index Page' }).log('Rendering index page...');
   }
 
   @Post('upload')
-  @UseInterceptors(
-    FileInterceptor('file', { storage: new StreamStorageEngine() }),
-  )
+  @UseInterceptors(FileInterceptor)
   uploadFile(
-    @UploadedFile(
-      new ParseFilePipeBuilder()
-        .addFileTypeValidator({
-          fileType: 'text/csv',
-        })
-        .addMaxSizeValidator({
-          maxSize: 110000000,
-        })
-        .build({
-          errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY,
-          fileIsRequired: true,
-        }),
-    )
-    file: Express.Multer.File,
+    @UploadedFile(ParseFile) file: CustomFile,
     @Res() res: Response,
   ): void {
-    const logger = new ConsoleLogger({ context: 'Upload File' });
+    const fileSizeInMB = (file.size / (1024 * 1024)).toFixed(4);
 
-    logger.log('Uploading .csv file...', file.mimetype, file.size, file.stream);
-
-    return res.render('index', {
-      message: 'File Uploaded!',
+    res.render(AppController.VIEW_TEMPLATE_NAME, {
+      result: 'File successfully uploaded',
+      fileName: file.originalname,
+      fileSize: `${fileSizeInMB}MB`,
+      fileType: file.mimetype,
+      linesProcessed: file.linesRead,
     });
   }
 }
