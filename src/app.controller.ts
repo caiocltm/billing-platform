@@ -9,8 +9,8 @@ import {
   Res,
 } from '@nestjs/common';
 import { Response } from 'express';
-import ParseFile from './lib/pipe/parse-file.pipe';
-import FileInterceptor from './lib/interceptor/file.interceptor';
+import ParseFile from './lib/pipes/parse-file.pipe';
+import FileInterceptor from './lib/interceptors/file.interceptor';
 import { CustomFile } from './lib/multer/stream-storage.engine';
 
 @Controller()
@@ -39,6 +39,7 @@ export class AppController {
       fileSize: `${fileSizeInMB}MB`,
       fileType: file.mimetype,
       linesProcessed: file.linesRead,
+      processedChunks: file.processedChunks,
     });
   }
 }

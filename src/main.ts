@@ -4,7 +4,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ConsoleLogger } from '@nestjs/common';
 import { join } from 'node:path';
 import { AppModule } from './app.module';
-import { HttpExceptionFilter } from './lib/exception-filter/http-exception.filter';
+import { HttpExceptionFilter } from './lib/exception-filters/http-exception.filter';
 
 function setupStaticPages(app: NestExpressApplication): void {
   app.useStaticAssets(join(__dirname, '..', 'public'));
