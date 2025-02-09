@@ -8,13 +8,16 @@ import {
   Render,
   Res,
   Req,
+  HttpStatus,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { Row } from './lib/types/row.type';
 import { Readable } from 'node:stream';
 import { ConfigService } from '@nestjs/config';
-import { EventEmitter2 } from '@nestjs/event-emitter';
-import { Events } from './billing/enums/events.enum';
+import { BillingQueues } from './lib/enums/queue.enum';
+import { Queue } from 'bullmq';
+import { InjectQueue } from '@nestjs/bullmq';
+import { QueueException } from './lib/exception-filters/custom-exceptions/queue.exception';
 
 @Controller()
 export class AppController {
@@ -22,7 +25,8 @@ export class AppController {
 
   constructor(
     private configService: ConfigService,
-    private eventEmitter: EventEmitter2,
+    @InjectQueue(BillingQueues.BILLING_SERIALIZED)
+    private billingSerializedQueue: Queue,
   ) {}
 
   @Get()
@@ -38,7 +42,6 @@ export class AppController {
     const logger = new ConsoleLogger({ context: this.uploadFile.name });
 
     let linesProcessed = 0;
-    let bytesRead = 0;
 
     const busboy = Busboy({
       headers: req.headers,
@@ -52,42 +55,26 @@ export class AppController {
         file: Readable,
         { mimeType, filename }: { filename: string; mimeType: string },
       ) => {
-        const fileContentLength = parseInt(
-          req.headers['content-length'] as string,
-        );
-
         if (mimeType !== FILE_TYPE) {
           return res.render(AppController.VIEW_TEMPLATE_NAME, {
+            status: HttpStatus.UNPROCESSABLE_ENTITY,
             result: `[INVALID_FILE_TYPE] Allowed only file of type ${FILE_TYPE}`,
             fileName: filename,
-            fileSize: fileContentLength,
             fileType: mimeType,
             linesProcessed: 0,
           });
         }
-
-        file.on('data', (chunk: Buffer) => {
-          bytesRead += chunk.length;
-
-          if (bytesRead > MAX_FILE_SIZE) {
-            file.destroy();
-
-            return res.render(AppController.VIEW_TEMPLATE_NAME, {
-              result: `[INVALID_FILE_SIZE] Allowed only files with size less or equal than [${MAX_FILE_SIZE} bytes]`,
-              fileName: filename,
-              fileSize: fileContentLength,
-              fileType: mimeType,
-              linesProcessed,
-            });
-          }
-        });
 
         file
           .pipe(CSV())
           .on('data', (data: Row) => {
             linesProcessed++;
 
-            this.eventEmitter.emit(Events.BILLING_SERIALIZED, data);
+            this.billingSerializedQueue
+              .add(BillingQueues.BILLING_SERIALIZED, data)
+              .catch((error: Error) => {
+                throw new QueueException(error.message);
+              });
           })
           .on('end', () => {
             const info = `Successfully uploaded ${FILE_TYPE} file ${filename} and processed ${linesProcessed} lines`;
@@ -95,9 +82,9 @@ export class AppController {
             logger.log(info);
 
             return res.render(AppController.VIEW_TEMPLATE_NAME, {
+              status: HttpStatus.OK,
               result: info,
               fileName: filename,
-              fileSize: fileContentLength,
               fileType: mimeType,
               linesProcessed,
             });
@@ -110,9 +97,9 @@ export class AppController {
             file.destroy();
 
             return res.render(AppController.VIEW_TEMPLATE_NAME, {
+              status: HttpStatus.INTERNAL_SERVER_ERROR,
               result: info,
               fileName: filename,
-              fileSize: fileContentLength,
               fileType: mimeType,
               linesProcessed,
             });
@@ -121,9 +108,8 @@ export class AppController {
     );
 
     busboy.on('error', (error: Error) => {
-      busboy.destroy();
-
       return res.render(AppController.VIEW_TEMPLATE_NAME, {
+        status: HttpStatus.INTERNAL_SERVER_ERROR,
         result: `Error on Busboy to upload file. Error: ${error.message}`,
         linesProcessed,
       });
