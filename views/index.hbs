@@ -28,12 +28,11 @@
 
     {{#if result}}
       <div class='result-message'>
-        <p>{{result}}</p>
+        <p>[{{status}}] {{result}}</p>
         <p>Filename: {{fileName}}</p>
         <p>File size: {{fileSize}}</p>
         <p>File type: {{fileType}}</p>
-        <p>CSV lines processed: {{linesProcessed}}</p>
-        <p>Chunks processed: {{processedChunks}}</p>
+        <p>Lines processed: {{linesProcessed}}</p>
       </div>
     {{/if}}
   </body>

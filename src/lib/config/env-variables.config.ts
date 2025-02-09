@@ -33,6 +33,13 @@ class EnvironmentVariables {
 
   @IsString()
   DATABASE_NAME: string;
+
+  @IsNumber()
+  @Min(1)
+  MAX_FILE_SIZE: number;
+
+  @IsString()
+  FILE_TYPE: string;
 }
 
 function validate(config: Record<string, unknown>): EnvironmentVariables {
