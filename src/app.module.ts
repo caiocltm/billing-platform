@@ -9,18 +9,6 @@ import { BullModule } from '@nestjs/bullmq';
 
 @Module({
   imports: [
-    BullModule.forRootAsync({
-      imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => {
-        return {
-          connection: {
-            host: configService.get('REDIS_HOST'),
-            port: configService.get('REDIS_PORT'),
-          },
-        };
-      },
-      inject: [ConfigService],
-    }),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
@@ -41,9 +29,22 @@ import { BullModule } from '@nestjs/bullmq';
       verboseMemoryLeak: true,
       ignoreErrors: false,
     }),
+    BullModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => {
+        return {
+          connection: {
+            host: configService.get('REDIS_HOST'),
+            port: configService.get('REDIS_PORT'),
+          },
+        };
+      },
+      inject: [ConfigService],
+    }),
     BillingModule,
   ],
   controllers: [AppController],
   providers: [],
+  exports: [],
 })
 export class AppModule {}

@@ -25,8 +25,8 @@ export class AppController {
 
   constructor(
     private configService: ConfigService,
-    @InjectQueue(BillingQueues.BILLING_SERIALIZED)
-    private billingSerializedQueue: Queue,
+    @InjectQueue(BillingQueues.PROCESS_BANK_SLIP)
+    private processBankSlipQueue: Queue,
   ) {}
 
   @Get()
@@ -70,8 +70,8 @@ export class AppController {
           .on('data', (data: Row) => {
             linesProcessed++;
 
-            this.billingSerializedQueue
-              .add(BillingQueues.BILLING_SERIALIZED, data)
+            this.processBankSlipQueue
+              .add(BillingQueues.PROCESS_BANK_SLIP, data)
               .catch((error: Error) => {
                 throw new QueueException(error.message);
               });

@@ -1,12 +1,12 @@
 import { Injectable } from '@nestjs/common';
+import { ReadStream } from 'node:fs';
 import { appendFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { PassThrough } from 'node:stream';
 import { BillingEntity } from 'src/billing/billing.entity';
 
 export interface EmailParams {
   to: string;
-  attachment: PassThrough;
+  attachment: ReadStream;
   billingEntity?: BillingEntity;
 }
 

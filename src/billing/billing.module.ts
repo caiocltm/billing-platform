@@ -1,10 +1,7 @@
 import { Module } from '@nestjs/common';
-import { BillingSerializedQueue } from '../queues/billing-serialized.queue';
-import { StoreBillingQueue } from '../queues/store-billing.queue';
-import { BankSlipQueue } from '../queues/bank-slip.queue';
+import { ProcessBankSlipQueue } from './queues/process-bank-slip.queue';
 import { MongooseModule } from '@nestjs/mongoose';
 import { BillingSchema, Billing } from './schemas/billing.schema';
-import { BankSlipEmailQueue } from '../queues/send-email.queue';
 import { EmailSenderAPI } from 'src/lib/apis/email-sender.api';
 import { PdfAPI } from 'src/lib/apis/pdf.api';
 import { BucketAPI } from 'src/lib/apis/bucket.api';
@@ -25,35 +22,13 @@ const defaultJobOptions: DefaultJobOptions = {
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: Billing.name, schema: BillingSchema }]),
-    BullModule.registerQueue(
-      {
-        name: BillingQueues.BILLING_SERIALIZED,
-        defaultJobOptions,
-      },
-      {
-        name: BillingQueues.STORE_BILLING_ENTITY,
-        defaultJobOptions,
-      },
-      {
-        name: BillingQueues.GENERATE_BANK_SLIP,
-        defaultJobOptions,
-      },
-      {
-        name: BillingQueues.SEND_BANK_SLIP_EMAIL,
-        defaultJobOptions,
-      },
-    ),
+    BullModule.registerQueue({
+      name: BillingQueues.PROCESS_BANK_SLIP,
+      defaultJobOptions,
+    }),
   ],
   controllers: [],
-  providers: [
-    BankSlipEmailQueue,
-    StoreBillingQueue,
-    BillingSerializedQueue,
-    BankSlipQueue,
-    EmailSenderAPI,
-    PdfAPI,
-    BucketAPI,
-  ],
-  exports: [EmailSenderAPI, PdfAPI, BucketAPI],
+  providers: [ProcessBankSlipQueue, EmailSenderAPI, PdfAPI, BucketAPI],
+  exports: [ProcessBankSlipQueue, EmailSenderAPI, PdfAPI, BucketAPI],
 })
 export class BillingModule {}
