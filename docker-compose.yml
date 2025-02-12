@@ -1,8 +1,11 @@
 services:
-  nestjs-app:
+  billing-platform:
+    container_name: 'billing-platform-api'
     build:
       context: .
       dockerfile: Dockerfile
+    networks:
+      - billing-platform
     env_file:
       - .env
     ports:
@@ -19,11 +22,14 @@ services:
     restart: unless-stopped
 
   mongodb:
+    container_name: 'billing-platform-db'
     image: mongo:latest
+    networks:
+      - billing-platform
     env_file:
       - .env
     ports:
-      - '27017:27017'
+      - '${DATABASE_PORT}:${DATABASE_PORT}'
     volumes:
       - mongodb-data:/data/db
     environment:
@@ -31,12 +37,21 @@ services:
     restart: unless-stopped
 
   redis:
+    container_name: 'billing-platform-redis'
     image: redis:latest
+    networks:
+      - billing-platform
     env_file:
       - .env
     ports:
       - '${REDIS_PORT}:${REDIS_PORT}'
+    volumes:
+      - redis-data:/data/redis
     restart: unless-stopped
 
 volumes:
   mongodb-data:
+  redis-data:
+
+networks:
+  billing-platform:
