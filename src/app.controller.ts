@@ -14,38 +14,42 @@ import { Request, Response } from 'express';
 import { Row } from './lib/types/row.type';
 import { Readable } from 'node:stream';
 import { ConfigService } from '@nestjs/config';
-import { BillingQueues } from './lib/enums/queue.enum';
-import { Queue } from 'bullmq';
-import { InjectQueue } from '@nestjs/bullmq';
-import { QueueException } from './lib/exception-filters/custom-exceptions/queue.exception';
+import { pipeline } from 'node:stream/promises';
+import { BillingService } from './billing/billing.service';
 
 @Controller()
 export class AppController {
+  private readonly logger = new ConsoleLogger({ prefix: AppController.name });
   public static VIEW_TEMPLATE_NAME = 'index';
+  public static BATCH_SIZE = 200;
+  private FILE_TYPE: string;
+  private MAX_FILE_SIZE: number;
 
   constructor(
     private configService: ConfigService,
-    @InjectQueue(BillingQueues.PROCESS_BANK_SLIP)
-    private processBankSlipQueue: Queue,
-  ) {}
+    private billingService: BillingService,
+  ) {
+    this.MAX_FILE_SIZE = this.configService.get('MAX_FILE_SIZE') as number;
+    this.FILE_TYPE = this.configService.get('FILE_TYPE') as string;
+  }
 
   @Get()
   @Render(AppController.VIEW_TEMPLATE_NAME)
   renderIndexPage(): void {
-    new ConsoleLogger({ context: 'Index Page' }).log('Rendering index page...');
+    this.logger.setContext(this.renderIndexPage.name);
+
+    this.logger.log('Rendering index page...');
   }
 
   @Post('upload')
   uploadFile(@Req() req: Request, @Res() res: Response): void {
-    const MAX_FILE_SIZE = this.configService.get('MAX_FILE_SIZE') as number;
-    const FILE_TYPE = this.configService.get('FILE_TYPE') as string;
-    const logger = new ConsoleLogger({ context: this.uploadFile.name });
+    this.logger.setContext(this.uploadFile.name);
 
     let linesProcessed = 0;
 
     const busboy = Busboy({
       headers: req.headers,
-      limits: { fileSize: MAX_FILE_SIZE },
+      limits: { fileSize: this.MAX_FILE_SIZE },
     });
 
     busboy.on(
@@ -55,33 +59,67 @@ export class AppController {
         file: Readable,
         { mimeType, filename }: { filename: string; mimeType: string },
       ) => {
-        if (mimeType !== FILE_TYPE) {
+        if (mimeType !== this.FILE_TYPE) {
+          req.unpipe(busboy);
+          file.destroy();
+
           return res.render(AppController.VIEW_TEMPLATE_NAME, {
             status: HttpStatus.UNPROCESSABLE_ENTITY,
-            result: `[INVALID_FILE_TYPE] Allowed only file of type ${FILE_TYPE}`,
+            result: `[INVALID_FILE_TYPE] Allowed only file of type ${this.FILE_TYPE}`,
             fileName: filename,
             fileType: mimeType,
             linesProcessed: 0,
           });
         }
 
-        file
-          .pipe(CSV())
-          .on('data', (data: Row) => {
-            linesProcessed++;
+        file.on('limit', () => {
+          req.unpipe(busboy);
+          file.destroy();
 
-            this.processBankSlipQueue
-              .add(BillingQueues.PROCESS_BANK_SLIP, data)
-              .catch((error: Error) => {
-                throw new QueueException(error.message);
-              });
-          })
-          .on('end', () => {
-            const info = `Successfully uploaded ${FILE_TYPE} file ${filename} and processed ${linesProcessed} lines`;
+          res.render(AppController.VIEW_TEMPLATE_NAME, {
+            status: HttpStatus.PAYLOAD_TOO_LARGE,
+            result: `[FILE_TOO_LARGE] File size exceeds the limit of ${this.MAX_FILE_SIZE} bytes.`,
+            fileName: filename,
+            fileType: mimeType,
+            linesProcessed: 0,
+          });
+        });
 
-            logger.log(info);
+        pipeline(
+          file,
+          CSV(),
+          async function* (this: AppController, data: AsyncGenerator<Row>) {
+            let batch: Row[] = [];
 
-            return res.render(AppController.VIEW_TEMPLATE_NAME, {
+            for await (const billing of data) {
+              linesProcessed++;
+
+              if (batch.length >= AppController.BATCH_SIZE) {
+                await this.billingService.processBillingsBatch(batch);
+
+                batch = [];
+
+                continue;
+              }
+
+              batch.push(billing);
+            }
+
+            if (batch.length) {
+              await this.billingService.processBillingsBatch(batch);
+
+              batch = [];
+            }
+
+            yield data;
+          }.bind(this),
+        )
+          .then(() => {
+            const info = `Successfully uploaded ${this.FILE_TYPE} file and initiated process of ${linesProcessed} billings`;
+
+            this.logger.log(info);
+
+            res.render(AppController.VIEW_TEMPLATE_NAME, {
               status: HttpStatus.OK,
               result: info,
               fileName: filename,
@@ -89,26 +127,18 @@ export class AppController {
               linesProcessed,
             });
           })
-          .on('error', (error: Error) => {
-            const info = `Error on upload ${FILE_TYPE} file ${filename}. Error: ${error.message}`;
-
-            logger.error(info);
-
-            file.destroy();
-
-            return res.render(AppController.VIEW_TEMPLATE_NAME, {
-              status: HttpStatus.INTERNAL_SERVER_ERROR,
-              result: info,
-              fileName: filename,
-              fileType: mimeType,
-              linesProcessed,
-            });
+          .catch((error: Error) => {
+            this.logger.error(
+              `Error on upload ${this.FILE_TYPE} file ${filename}. Error: ${error?.message}`,
+            );
           });
       },
     );
 
     busboy.on('error', (error: Error) => {
-      return res.render(AppController.VIEW_TEMPLATE_NAME, {
+      req.unpipe(busboy);
+
+      res.render(AppController.VIEW_TEMPLATE_NAME, {
         status: HttpStatus.INTERNAL_SERVER_ERROR,
         result: `Error on Busboy to upload file. Error: ${error.message}`,
         linesProcessed,

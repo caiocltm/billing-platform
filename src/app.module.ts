@@ -2,10 +2,9 @@ import { AppController } from './app.controller';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import EnvVariables from './lib/config/env-variables.config';
-import { EventEmitterModule } from '@nestjs/event-emitter';
 import { MongooseModule } from '@nestjs/mongoose';
-import { BillingModule } from './billing/billing.module';
 import { BullModule } from '@nestjs/bullmq';
+import { BillingModule } from './billing/billing.module';
 
 @Module({
   imports: [
@@ -19,15 +18,6 @@ import { BullModule } from '@nestjs/bullmq';
     ConfigModule.forRoot({
       isGlobal: true,
       validate: EnvVariables.validate,
-    }),
-    EventEmitterModule.forRoot({
-      wildcard: false,
-      delimiter: '.',
-      newListener: true,
-      removeListener: true,
-      maxListeners: 10,
-      verboseMemoryLeak: true,
-      ignoreErrors: false,
     }),
     BullModule.forRootAsync({
       imports: [ConfigModule],

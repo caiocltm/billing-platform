@@ -1,6 +1,6 @@
 import { ProcessBillingException } from './process-billing.exception';
 
-export class QueueException extends ProcessBillingException {
+export class GenerateBankSlipFileException extends ProcessBillingException {
   constructor() {
     super();
   }

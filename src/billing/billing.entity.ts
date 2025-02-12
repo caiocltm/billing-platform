@@ -1,4 +1,4 @@
-import { Expose, Transform } from 'class-transformer';
+import { Expose } from 'class-transformer';
 import { BillingSerializedDto } from 'src/lib/dtos/billing-serialized.dto';
 
 export class BillingEntity {
@@ -15,7 +15,6 @@ export class BillingEntity {
   debtAmount: number;
 
   @Expose()
-  @Transform(({ value }) => new Date(value as string), { toClassOnly: true })
   debtDueDate: Date;
 
   @Expose()

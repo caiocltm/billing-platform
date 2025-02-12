@@ -33,18 +33,22 @@ function setupFilter(app: NestExpressApplication): void {
 
 async function bootstrap(): Promise<void> {
   const appName = process.env.APP_NAME as string;
+  const logger = new ConsoleLogger({
+    prefix: appName,
+    context: 'App bootstrap',
+  });
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
-    logger: new ConsoleLogger({
-      prefix: appName,
-    }),
+    logger,
   });
 
   setupSwagger(appName, app);
   setupStaticPages(app);
   setupFilter(app);
 
-  await app.listen(process.env.PORT as string);
+  await app.listen(process.env.PORT as string, () => {
+    logger.log(`Server successfully initiated at port ${process.env.PORT}`);
+  });
 }
 
 void bootstrap();

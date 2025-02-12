@@ -1,7 +1,7 @@
-import { HttpException, HttpStatus } from '@nestjs/common';
+import { ProcessBillingException } from './process-billing.exception';
 
-export class SendEmailException extends HttpException {
-  constructor(message: string) {
-    super(message, HttpStatus.INTERNAL_SERVER_ERROR);
+export class SendEmailException extends ProcessBillingException {
+  constructor() {
+    super();
   }
 }

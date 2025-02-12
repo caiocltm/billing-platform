@@ -1,3 +1,3 @@
 export enum BillingQueues {
-  PROCESS_BANK_SLIP = 'process.bank.slip',
+  PROCESS_BILLING = 'process.billing',
 }

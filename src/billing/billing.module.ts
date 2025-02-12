@@ -1,18 +1,22 @@
 import { Module } from '@nestjs/common';
-import { ProcessBankSlipQueue } from './queues/process-bank-slip.queue';
 import { MongooseModule } from '@nestjs/mongoose';
-import { BillingSchema, Billing } from './schemas/billing.schema';
+import { BullModule } from '@nestjs/bullmq';
+import { BillingQueues } from 'src/lib/enums/queue.enum';
+import { DefaultJobOptions } from 'bullmq';
+import { Billing, BillingSchema } from './schemas/billing.schema';
+import { ProcessBillingQueue } from './queues/process-billing.queue';
 import { EmailSenderAPI } from 'src/lib/apis/email-sender.api';
 import { PdfAPI } from 'src/lib/apis/pdf.api';
 import { BucketAPI } from 'src/lib/apis/bucket.api';
-import { BillingQueues } from 'src/lib/enums/queue.enum';
-import { BullModule } from '@nestjs/bullmq';
-import { DefaultJobOptions } from 'bullmq';
+import { BankSlipGenerator } from './services/bank-skip-generator.service';
+import { EmailNotifyBankSlipService } from './services/email-notify-bank-slip.service';
+import { BillingRepository } from './billing.repository';
+import { BillingService } from './billing.service';
 
 const defaultJobOptions: DefaultJobOptions = {
   removeOnComplete: true,
   removeOnFail: true,
-  attempts: 1000,
+  attempts: 10,
   backoff: {
     type: 'exponential',
     delay: 500,
@@ -23,12 +27,31 @@ const defaultJobOptions: DefaultJobOptions = {
   imports: [
     MongooseModule.forFeature([{ name: Billing.name, schema: BillingSchema }]),
     BullModule.registerQueue({
-      name: BillingQueues.PROCESS_BANK_SLIP,
+      name: BillingQueues.PROCESS_BILLING,
       defaultJobOptions,
     }),
   ],
   controllers: [],
-  providers: [ProcessBankSlipQueue, EmailSenderAPI, PdfAPI, BucketAPI],
-  exports: [ProcessBankSlipQueue, EmailSenderAPI, PdfAPI, BucketAPI],
+  providers: [
+    BankSlipGenerator,
+    EmailNotifyBankSlipService,
+    BillingRepository,
+    ProcessBillingQueue,
+    EmailSenderAPI,
+    PdfAPI,
+    BucketAPI,
+    BillingService,
+  ],
+  exports: [
+    BullModule,
+    BankSlipGenerator,
+    EmailNotifyBankSlipService,
+    BillingRepository,
+    ProcessBillingQueue,
+    EmailSenderAPI,
+    PdfAPI,
+    BucketAPI,
+    BillingService,
+  ],
 })
 export class BillingModule {}
