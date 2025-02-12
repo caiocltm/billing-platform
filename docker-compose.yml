@@ -9,6 +9,7 @@ services:
       - '${PORT}:${PORT}'
     depends_on:
       - mongodb
+      - redis
     environment:
       - NODE_ENV=${NODE_ENV}
       - MONGO_URI=${DATABASE_URI}
